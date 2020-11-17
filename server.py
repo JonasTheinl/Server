@@ -3,6 +3,7 @@ import threading
 import time 
 from axel import Event
 import struct
+import select
 
 class SocketServer:
     #List with all connected Clients 
@@ -17,6 +18,8 @@ class SocketServer:
         self.serverSocket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         self.serverSocket.bind((self.ip, self.port))
         self.serverSocket.listen()
+        self.checkThread = threading.Thread(target=self.checkConnection)
+        self.checkThread.start()
 
     #start the server
     def run(self):
@@ -47,9 +50,22 @@ class SocketServer:
 
     def disConnect(self):
         self.serverSocket.close()
+        for client in self.clients:
+            self.clients.remove(client)
 
     def onopen(self, client):
         print(client)
+
+    def checkConnection(self):       
+        while True:
+            for client in self.clients:
+                ready = select.select([client], [], [], 0.5)
+                if ready[0]:
+                    try:
+                        data = self.serverSocket.recv(1024)
+                    except:
+                        self.clients.remove(client)                      
+            time.sleep(1)
 
 class MessageMethods:
 
@@ -87,6 +103,5 @@ if __name__ == "__main__":
     t.start()
     ss.event += onNewMessage
     time.sleep(5)
-    ss.broadcast(b'Hallo')
-    
+  
     #ss.disConnect()
